@@ -1,3 +1,4 @@
+import * as net from 'net';
 import ShortUniqueId from 'short-unique-id';
 import * as vscode from 'vscode';
 import TelemetryReporter from 'vscode-extension-telemetry';
@@ -9,6 +10,7 @@ import {
   RevealOutputChannelOn,
   ServerOptions,
   State,
+  StreamInfo,
 } from 'vscode-languageclient/node';
 import { ServerPath } from './serverPath';
 import { ShowReferencesFeature } from './showReferences';
@@ -108,15 +110,34 @@ export class ClientHandler {
   private async getServerOptions(): Promise<ServerOptions> {
     const cmd = await this.lsPath.resolvedPathToBinary();
     const serverArgs = config('terraform').get<string[]>('languageServer.args', []);
-    const executable: Executable = {
-      command: cmd,
-      args: serverArgs,
-      options: {},
-    };
-    const serverOptions: ServerOptions = {
-      run: executable,
-      debug: executable,
-    };
+
+    let serverOptions: ServerOptions;
+    const port: number | undefined = config('terraform').get('languageServer.tcp_port');
+    if (port) {
+      serverOptions = () => {
+        const socket = new net.Socket();
+        socket.connect({
+          port: port,
+          host: 'localhost',
+        });
+        const result: StreamInfo = {
+          writer: socket,
+          reader: socket,
+        };
+        return Promise.resolve(result);
+      };
+    } else {
+      const executable: Executable = {
+        command: cmd,
+        args: serverArgs,
+        options: {},
+      };
+      serverOptions = {
+        run: executable,
+        debug: executable,
+      };
+    }
+
     this.outputChannel.appendLine(`Launching language server: ${cmd} ${serverArgs.join(' ')}`);
     return serverOptions;
   }
