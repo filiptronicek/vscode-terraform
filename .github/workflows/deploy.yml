@@ -1,0 +1,117 @@
+name: Publish Extension release
+
+permissions:
+  contents: write # for uploading release artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_type:
+        description: 'Deploy a stable or prerelease extension'
+        type: choice
+        required: true
+        default: stable
+        options:
+          - stable
+          - prerelease
+      langserver:
+        description: 'The terraform-ls version to use. If not specified will use version in package.json'
+        required: false
+        type: string
+
+jobs:
+  build:
+    name: Package
+    strategy:
+      matrix:
+        include:
+          - vsce_target: web
+            ls_target: web_noop
+            npm_config_arch: x64
+          - vsce_target: win32-x64
+            ls_target: windows_amd64
+            npm_config_arch: x64
+          - vsce_target: win32-arm64
+            ls_target: windows_arm64
+            npm_config_arch: arm
+          - vsce_target: linux-x64
+            ls_target: linux_amd64
+            npm_config_arch: x64
+          - vsce_target: linux-arm64
+            ls_target: linux_arm64
+            npm_config_arch: arm64
+          - vsce_target: linux-armhf
+            ls_target: linux_arm
+            npm_config_arch: arm
+          - vsce_target: darwin-x64
+            ls_target: darwin_amd64
+            npm_config_arch: x64
+          - vsce_target: darwin-arm64
+            ls_target: darwin_arm64
+            npm_config_arch: arm64
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          npm_config_arch: ${{ matrix.npm_config_arch }}
+          ls_target: ${{ matrix.ls_target }}
+
+      - name: Package PreRelease VSIX
+        if: inputs.deploy_type == 'prerelease'
+        run: npm run package -- --githubBranch $GITHUB_REF_NAME --pre-release --target=${{ matrix.vsce_target }}
+
+      - name: Package Stable VSIX
+        if: inputs.deploy_type == 'stable'
+        run: npm run package -- --target=${{ matrix.vsce_target }}
+
+      - name: Upload vsix as artifact
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: ${{ matrix.vsce_target }}
+          path: '*.vsix'
+
+  publish-pre-marketplace:
+    name: Publish Prerelease to Marketplace
+    runs-on: ubuntu-latest
+    needs: build
+    if: success() && inputs.deploy_type == 'prerelease'
+    steps:
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+      - name: Publish Prerelease to Marketplace
+        run: npx vsce publish --pre-release --no-git-tag-version --packagePath $(find . -iname *.vsix)
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+  publish-stable-marketplace:
+    name: Publish Marketplace
+    runs-on: ubuntu-latest
+    needs: build
+    if: success() && inputs.deploy_type == 'stable'
+    steps:
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+      - name: Publish Stable to Marketplace
+        run: npx vsce publish --no-git-tag-version --packagePath $(find . -iname *.vsix)
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+  publish-stable-openvsx:
+    name: Publish OpenVSX
+    runs-on: ubuntu-latest
+    needs: build
+    if: success() && inputs.deploy_type == 'stable'
+    steps:
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+      - name: Publish Stable to OpenVSX
+        run: npx ovsx publish --packagePath $(find . -iname *.vsix)
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}

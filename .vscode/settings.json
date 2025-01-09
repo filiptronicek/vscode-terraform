@@ -9,7 +9,7 @@
   "files.trimTrailingWhitespace": true,
 
   "files.exclude": {
-    "out": true
+    "out": false
   },
   "search.exclude": {
     "node_modules": true,
@@ -31,13 +31,19 @@
   "[markdown]": {
     "editor.wordWrapColumn": 80,
     "editor.wordWrap": "wordWrapColumn",
-    "editor.quickSuggestions": false,
-    "files.trimTrailingWhitespace": false
+    "editor.quickSuggestions": {
+      "comments": "off",
+      "strings": "off",
+      "other": "off"
+    },
+    "files.trimTrailingWhitespace": false,
+    "files.insertFinalNewline": false,
+    "files.trimFinalNewlines": false
   },
   "[typescript]": {
     "editor.codeActionsOnSave": {
-      "source.fixAll": true,
-      "source.organizeImports": false
+      "source.fixAll": "explicit",
+      "source.organizeImports": "never"
     },
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },

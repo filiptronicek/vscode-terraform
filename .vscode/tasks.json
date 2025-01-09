@@ -1,34 +1,58 @@
+// See https://go.microsoft.com/fwlink/?LinkId=733558
+// for the documentation about the tasks.json format
 {
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "watch",
+      "dependsOn": ["npm: watch:tsc", "npm: watch:esbuild"],
+      "presentation": {
+        "reveal": "never"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
       "type": "npm",
-      "script": "watch",
+      "script": "watch:esbuild",
       "group": "build",
       "problemMatcher": "$esbuild-watch",
       "isBackground": true,
-      "label": "npm: watch"
+      "label": "npm: watch:esbuild",
+      "presentation": {
+        "group": "watch",
+        "reveal": "never"
+      }
     },
     {
       "type": "npm",
-      "script": "build",
+      "script": "watch:tsc",
       "group": "build",
-      "problemMatcher": "$esbuild",
-      "label": "npm: build"
+      "problemMatcher": "$tsc-watch",
+      "isBackground": true,
+      "label": "npm: watch:tsc",
+      "presentation": {
+        "group": "watch",
+        "reveal": "never"
+      }
     },
     {
-      "label": "terraformInitAndWatch",
-      "type": "process",
-      "command": "terraform",
-      "args": ["init"],
-      "options": {
-        "cwd": "${workspaceFolder}/testFixture"
-      },
+      "type": "npm",
+      "script": "watch-tests",
+      "problemMatcher": "$tsc-watch",
+      "isBackground": true,
       "presentation": {
-        "panel": "dedicated",
-        "reveal": "never"
+        "reveal": "never",
+        "group": "watchers"
       },
-      "dependsOn": "npm: compile"
+      "group": "build"
+    },
+    {
+      "label": "tasks: watch-tests",
+      "dependsOn": ["npm: watch", "npm: watch-tests"],
+      "problemMatcher": []
     }
   ]
 }
